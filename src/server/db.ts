@@ -1,5 +1,4 @@
 import { Client } from "@planetscale/database";
-import { PrismaPlanetScale } from "@prisma/adapter-planetscale";
 import { PrismaClient } from "@prisma/client";
 
 import { env } from "~/env";
@@ -10,7 +9,15 @@ const createPrismaClient = () =>
   new PrismaClient({
     log:
       env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-    adapter: new PrismaPlanetScale(psClient),
+  }).$extends({
+    query: {
+      async $allOperations<T>({ args, query }: { 
+        args: unknown; 
+        query: (args: unknown) => Promise<T>;
+      }): Promise<T> {
+        return psClient.transaction(async () => query(args));
+      },
+    },
   });
 
 const globalForPrisma = globalThis as unknown as {
